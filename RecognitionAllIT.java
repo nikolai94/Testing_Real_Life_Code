@@ -1,3 +1,8 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package net.sf.javaanpr.test;
 
 import java.io.File;
@@ -19,6 +24,10 @@ import org.junit.runners.Parameterized;
 import org.hamcrest.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.Matchers.greaterThan;
+import org.junit.Before;
 import org.xml.sax.SAXException;
 
 /**
@@ -28,11 +37,19 @@ import org.xml.sax.SAXException;
 @RunWith(Parameterized.class)
 public class RecognitionAllIT {
 
-    private String plateCorrect, plateResult;
-    
-    public RecognitionAllIT(String plateCorrect, String plateResult) {
+    private String plateCorrect;
+    private File plate;
+
+    private CarSnapshot carSnap;
+
+    public RecognitionAllIT(String plateCorrect, File plate) {
         this.plateCorrect = plateCorrect;
-        this.plateResult = plateResult;
+        this.plate = plate;
+    }
+
+    @Before
+    public void init() throws IOException {
+        carSnap = new CarSnapshot(new FileInputStream(plate));
     }
 
     @Parameterized.Parameters
@@ -44,36 +61,35 @@ public class RecognitionAllIT {
 
         Properties properties = new Properties();
         properties.load(resultsStream);
+        assertThat(properties.size(), greaterThan(0));
 
         File snapshotDir;
         File[] snapshots = null;
-      
+
         resultsStream.close();
 
         snapshotDir = new File(snapshotDirPath);
         snapshots = snapshotDir.listFiles();
-        
-        Intelligence intel = new Intelligence();
+        assertThat(snapshots.length, greaterThan(0));
 
         Collection<Object[]> listOfResults = new ArrayList();
         for (File snap : snapshots) {
-                CarSnapshot carSnap = new CarSnapshot(new FileInputStream(snap));
-
-                String snapName = snap.getName();
-                String plateCorrect = properties.getProperty(snapName);
-
-                String numberPlate = intel.recognize(carSnap, false);
-
-                listOfResults.add(new Object[]{plateCorrect, numberPlate});
-
-                carSnap.close();
+            String snapName = snap.getName();
+            String plateCorrect = properties.getProperty(snapName);
+            
+            listOfResults.add(new Object[]{plateCorrect, snap});
+            
         }
         return listOfResults;
     }
 
     @Test
-    public void testAllSnapshotsNew() {
-//        assertEquals(plateCorrect, plateResult);
-        assertThat(plateCorrect, is(equalTo(plateResult)));
+    public void testAllSnapshotsNew() throws Exception {
+        Intelligence intel = new Intelligence();
+        assertThat(intel, is(notNullValue()));
+        assertThat(carSnap, is(notNullValue()));
+        String numberPlate = intel.recognize(carSnap, false);
+        assertThat(plateCorrect, is(equalTo(numberPlate)));
+        carSnap.close();
     }
 }
